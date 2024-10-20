@@ -1,6 +1,12 @@
 import os
 from groq import Groq
 import re
+import dotenv
+
+dotenv.load_dotenv()
+
+GROQ_API_KEY = os.getenv('GROQ_API_KEY')
+print(GROQ_API_KEY)
 
 url = input("Enter url: ")
 
@@ -81,13 +87,12 @@ print('Generating questions...')
 
 max_len = 17000*4 # API has a limit of 17000 tokens (char*4 is an approximate for tokens)
 model = 'llama-3.1-70b-versatile'
-api_key = open('api_key.txt').read().strip()
 
 while text:
     ask = text[:max_len]
     text = text[max_len:]
 
-    client = Groq(api_key=api_key)
+    client = Groq(api_key=GROQ_API_KEY)
     chat_completion = client.chat.completions.create(
         messages=[
             {
