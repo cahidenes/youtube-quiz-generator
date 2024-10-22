@@ -102,7 +102,7 @@ else:
 print('\nSelected subtitle: ' + selected_key + (' subtitle' if selected_type == "subtitle" else ' Auto-caption'))
 
 # Download the selected subtitle
-download_subtitle(url, selected_key, selected_type == 'auto-caption')
+download_subtitle(url, selected_key, selected_type)
 
 with open(f'subtitle.{selected_key}.vtt') as f:
     sub = f.read()
