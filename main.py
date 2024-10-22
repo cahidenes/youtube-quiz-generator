@@ -4,6 +4,7 @@ import re
 
 url = input("Enter url: ")
 
+print('Fetching available subtitles...')
 os.system('yt-dlp --list-subs ' + url + ' > sublist.txt')
 s = open('sublist.txt').read()
 
@@ -79,7 +80,7 @@ text = ' '.join(text)
 
 print('Generating questions...')
 
-max_len = 17000*4 # API has a limit of 17000 tokens (char*4 is an approximate for tokens)
+max_len = 17000*4 # API has a limit of 18000 tokens (characters*4 is an approximate for tokens)
 model = 'llama-3.1-70b-versatile'
 api_key = open('api_key.txt').read().strip()
 
