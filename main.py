@@ -2,60 +2,109 @@ import os
 from groq import Groq
 import re
 import dotenv
+import yt_dlp
 
 dotenv.load_dotenv()
-
 GROQ_API_KEY = os.getenv('GROQ_API_KEY')
-print(GROQ_API_KEY)
+ydl_opts = {
+        'quiet': True,  # Suppress verbose yt-dlp output
+        'skip_download': True,  # Do not download the video'
+    }
+
+def get_subtitle_data(result, lang_prefixes=('en', 'tr')):
+    """
+    Extracts subtitles and auto-captions from the result based on language prefixes.
+    """
+    sub_keys = [key for key in result.get('subtitles', {}).keys() if key.startswith(lang_prefixes)]
+    cap_keys = [key for key in result.get('automatic_captions', {}).keys() if key.startswith(lang_prefixes)]
+
+    subs = {key: result['subtitles'][key] for key in sub_keys}
+    auto_captions = {key: result['automatic_captions'][key] for key in cap_keys}
+
+    return subs, auto_captions, sub_keys, cap_keys
+
+def display_options(sub_keys, cap_keys):
+    """
+    Displays the available subtitles and auto-captions to the user.
+    """
+    i = 0
+    options = []
+
+    # Display subtitles
+    print("Available Subtitles and Auto-captions:")
+    print("=======================================")
+    print("\n Subtitles:\n")
+    for key in sub_keys:
+        print(f"[{i}] : {key}")
+        options.append(('subtitle', key))
+        i += 1
+
+    # Display auto-captions
+    print("\n Auto-captions:\n")
+    for key in cap_keys:
+        print(f"[{i}] : {key}")
+        options.append(('auto-caption', key))
+        i += 1
+
+    return options
+
+def validate_selection(selected_index, max_index):
+    """
+    Validates the user's input to ensure it falls within the allowed range.
+    """
+    if selected_index < 0 or selected_index > max_index:
+        print(f"Invalid selection. Please select a number between 0 and {max_index}.")
+        exit(1)
+
+def download_subtitle(url, sub_lang, selected_type):
+    ydl_opts = {
+        'skip_download': True,
+        'writesubtitles': True,
+        'subtitleslangs': [sub_lang],
+        'outtmpl': 'subtitle.%(ext)s'
+    }
+    
+    # Adjust option for automatic subtitles
+    if selected_type == 'auto-caption':
+        ydl_opts['writeautomaticsub'] = True
+
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        ydl.download([url])
+
+ydl = yt_dlp.YoutubeDL(params=ydl_opts)
 
 url = input("Enter url: ")
 
-print('Fetching available subtitles...')
-os.system('yt-dlp --list-subs ' + url + ' > sublist.txt')
-s = open('sublist.txt').read()
-
-autos = []
-subs = []
-
-counter = 0
-for line in s.splitlines():
-    if line.startswith('[info]') or line.startswith('Language'):
-        counter += 1
-    else:
-        if counter == 2:
-            if line.startswith('en') or line.startswith('tr'):
-                autos.append(line.split()[0])
-        if counter == 4:
-            subs.append(line.split()[0])
-
-print('-- Available Subtitles --')
-print('Auto-generated:')
-print('\n'.join(f'[{number}] {name}' for number, name in enumerate(autos)))
-print('Manual:')
-print('\n'.join(f'[{number}] {name}' for number, name in zip(range(len(autos), len(autos)+len(subs)), subs)))
-print()
-
-selection = input('Selection: ')
+result = ydl.extract_info(url, download=False)
+# Get subtitles and auto-captions
+subs, auto_captions, sub_keys, cap_keys = get_subtitle_data(result)
+# Display options
+options = display_options(sub_keys, cap_keys)
+# Prompt user to select
 try:
-    selection = int(selection)
-    if selection < len(autos):
-        sub = autos[selection]
-        auto = True
-    else:
-        sub = subs[selection-len(autos)]
-        auto = False
-except:
-    print('Invalid selection')
+    selected_index = int(input("Select a subtitle or auto-caption by index: "))
+except ValueError:
+    print("Error: Please enter a valid number.")
     exit(1)
+# Validate selection
+validate_selection(selected_index, len(options) - 1)
 
-print('Selected subtitle: ' + sub + (' Auto-generated' if auto else ' Manual'))
-
-if auto:
-    os.system(f'yt-dlp --write-auto-sub --sub-lang {sub} --skip-download -o "subtitle.%(ext)s" {url}')
+# Check if the selection is a subtitle or auto-caption
+selected_type, selected_key = options[selected_index]
+selected_sub = None
+if selected_type == 'subtitle':
+    print(f"\nSelected Subtitle: {selected_key}")
+    selected_sub = subs[selected_key]
 else:
-    os.system(f'yt-dlp --write-sub --sub-lang {sub} --skip-download -o "subtitle.%(ext)s" {url}')
+    print(f"\nSelected Auto-caption: {selected_key}")
+    selected_sub = auto_captions[selected_key]
 
-with open(f'subtitle.{sub}.vtt') as f:
+print('\nSelected subtitle: ' + selected_key + (' subtitle' if selected_type == "subtitle" else ' Auto-caption'))
+
+# Download the selected subtitle
+download_subtitle(url, selected_key, selected_type)
+
+with open(f'subtitle.{selected_key}.vtt') as f:
     sub = f.read()
 
 
