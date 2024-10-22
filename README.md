@@ -8,11 +8,10 @@ According to a number of studies, taking a short-answer quiz after learning a co
 
 ## Installation
 
--   Install [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [groq](https://groq.com/)
+-   Install the requirements. ([yt-dlp](https://github.com/yt-dlp/yt-dlp) and [groq](https://groq.com/))
 
 ```bash
-pip install yt-dlp
-pip install groq
+pip install -r requirements.txt
 ```
 
 -   Get groq API key from [https://console.groq.com/keys](https://console.groq.com/keys)
