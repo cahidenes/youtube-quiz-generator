@@ -3,6 +3,7 @@ from groq import Groq
 import re
 import dotenv
 import yt_dlp
+import json
 
 dotenv.load_dotenv()
 GROQ_API_KEY = os.getenv('GROQ_API_KEY')
@@ -57,11 +58,16 @@ def validate_selection(selected_index, max_index):
         exit(1)
 
 def download_subtitle(url, sub_lang, selected_type):
+    """
+    Downloads the selected subtitle or auto-caption.
+    """
+
     ydl_opts = {
-        'skip_download': True,
-        'writesubtitles': True,
-        'subtitleslangs': [sub_lang],
-        'outtmpl': 'subtitle.%(ext)s'
+        'skip_download': True,                  # don't download the video
+        'writesubtitles': True,                 # downloads subtitles
+        'subtitleslangs': [sub_lang],           # sets subtitle language
+        'subtitlesformat': 'json3',             # sets subtitle format to JSON3
+        'outtmpl': 'subtitle.%(ext)s'           # sets the output file name
     }
     
     # Adjust option for automatic subtitles
@@ -104,34 +110,19 @@ print('\nSelected subtitle: ' + selected_key + (' subtitle' if selected_type == 
 # Download the selected subtitle
 download_subtitle(url, selected_key, selected_type)
 
-with open(f'subtitle.{selected_key}.vtt') as f:
-    sub = f.read()
+# Open the json3 subtitle file
+with open(f'subtitle.{selected_key}.json3') as f:
+    json_str = json.load(f)
 
+sublen = len(json_str['events'])
+text = ""
 
-sep = re.search("^[0-9\\.:]+ --> [0-9\\.:]+.*$", sub, flags=re.MULTILINE)[0]
-i = sub.find(sep)
-l = len(sep)+1
-
-sub = sub[i+l:]
-
-text = []
-while sub:
-    sep = re.search("^[0-9\\.:]+ --> [0-9\\.:]+.*$", sub, flags=re.MULTILINE)
-    if not sep:
-        tmp = re.sub("<.*?>", "", sub.replace("\n", "").replace("[Music]", "")).strip()
-        if len(text) == 0 or not tmp.startswith(text[-1]) and tmp:
-            text.append(tmp)
-        break
-    sep = sep[0]
-    i = sub.find(sep)
-    l = len(sep)+1
-
-    tmp = re.sub("<.*?>", "", sub[:i].replace("\n", "").replace("[Music]", "")).strip()
-    if len(text) == 0 or not tmp.startswith(text[-1]) and tmp:
-        text.append(tmp)
-    sub = sub[i+l:]
-
-text = ' '.join(text)
+# iterate through the json3 file and extract the captions
+for i in range(sublen):
+    try:
+        text += json_str['events'][i]['segs'][0]['utf8'].replace("\n", " ")
+    except KeyError:
+        pass
 
 print('Generating questions...')
 
