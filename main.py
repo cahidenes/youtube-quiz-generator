@@ -57,6 +57,10 @@ def validate_selection(selected_index, max_index):
         exit(1)
 
 def download_subtitle(url, sub_lang, selected_type):
+    """
+    Downloads the selected subtitle or auto-caption.
+    """
+
     ydl_opts = {
         'skip_download': True,
         'writesubtitles': True,
