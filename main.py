@@ -3,9 +3,14 @@ from groq import Groq
 import re
 import dotenv
 import yt_dlp
+import config
 
 dotenv.load_dotenv()
 GROQ_API_KEY = os.getenv('GROQ_API_KEY')
+
+default_lang = config.default_lang
+use_sub_if_possible = config.use_sub_if_possible
+question_count = config.question_count
 
 
 def get_subtitle_data(url, lang_prefixes=('en', 'tr')):
@@ -101,7 +106,7 @@ def get_subtitle(url, sub_lang, selected_type):
     return text
 
 
-def get_questions(text):
+def get_questions(text, question_count):
     max_len = 19000*4 # API has a limit of 20000 tokens (characters*4 is an approximate for tokens)
     model = 'llama-3.1-8b-instant'
 
@@ -114,7 +119,7 @@ def get_questions(text):
             messages=[
                 {
                     "role": "user",
-                    "content": f"Here is a text: {ask}\n\nWrite 10 short answer questions about important points of this text. Ask for specific answers. Ask to list some points if necessary. Answer each question shortly in curly brackets.",
+                    "content": f"Here is a text: {ask}\n\nWrite {question_count} short answer questions about important points of this text. Ask for specific answers. Ask to list some points if necessary. Answer each question shortly in curly brackets.",
                 }
             ],
             model=model,
@@ -141,14 +146,34 @@ def get_questions(text):
 url = input("Enter url: ")
 sub_keys, cap_keys = get_subtitle_data(url)
 
-selected_type, selected_key = ask_subtitle(sub_keys, cap_keys)
-print('\nSelected: ' + selected_key + selected_type)
+if default_lang == 'ask':
+    selected_type, selected_key = ask_subtitle(sub_keys, cap_keys)
+    print('\nSelected: ' + selected_key + selected_type)
 
+elif default_lang == 'orig':
+    for key in cap_keys:
+        if key.endswith('-orig'):
+            selected_key = key
+            selected_type = 'auto-caption'
+            break
+    if use_sub_if_possible and selected_key[:-5] in sub_keys:
+        selected_key = selected_key[:-5]
+        selected_type = 'subtitle'
+else:
+    selected_type = 'auto-caption'
+    selected_key = default_lang
+    if use_sub_if_possible and selected_key in sub_keys:
+        selected_type = 'subtitle'
 subtitle = get_subtitle(url, selected_key, selected_type)
 
-print('Generating questions...')
-questions = get_questions(subtitle)
 
+if question_count == 'ask':
+    question_count = int(input("Enter number of questions: "))
+elif question_count >= 1000:
+    question_count = len(subtitle) // question_count
+
+print('Generating questions...')
+questions = get_questions(subtitle, question_count)
 
 for i, (question, answer) in enumerate(questions):
     print('\n'*40)
@@ -160,4 +185,7 @@ for i, (question, answer) in enumerate(questions):
     print('\n'*40)
     print(answer)
     print('\n'*15)
-    input("Press Enter to see the next question...")
+    if i < len(questions) - 1:
+        input("Press Enter to see the next question...")
+    else:
+        input("Press Enter to exit...")

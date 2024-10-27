@@ -2,3 +2,4 @@ sublist.txt
 subtitle*
 run.sh
 .env
+__pycache__/
